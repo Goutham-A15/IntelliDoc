@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { BarChart3, FileText, Zap, Crown } from "lucide-react"
 import { getPlanById } from "@/lib/billing/subscription-plans"
+import { fetchFromApi } from "@/lib/api-client"
 
 export interface UsageData {
   current_usage: number
@@ -31,10 +32,7 @@ export function UsageMeter({ onUpgrade, refreshTrigger }: UsageMeterProps) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch("/api/usage")
-        if (!response.ok) {
-          throw new Error("Failed to fetch usage data")
-        }
+        const response = await fetchFromApi("/usage")
         const data = await response.json()
         setUsage(data)
       } catch (err) {
@@ -45,7 +43,9 @@ export function UsageMeter({ onUpgrade, refreshTrigger }: UsageMeterProps) {
     }
 
     fetchUsage()
-  }, [refreshTrigger]) // Re-fetches when the trigger number changes
+    // CORRECTED: Added refreshTrigger to the dependency array.
+    // This tells the component to re-run this effect whenever the trigger changes.
+  }, [refreshTrigger]) 
 
   if (loading) {
     return (

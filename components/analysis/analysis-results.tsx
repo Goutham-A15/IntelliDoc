@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { AlertTriangle, CheckCircle, Clock, FileText, Download } from "lucide-react"
 import type { AnalysisJob } from "@/lib/types/database"
 import type { AnalysisResult, Contradiction, Inconsistency } from "@/lib/ai/gemini-client"
+import { fetchFromApi } from "@/lib/api-client" // Import the helper
 
 interface AnalysisResultsProps {
   jobId: string
@@ -32,7 +33,7 @@ export function AnalysisResults({ jobId, onGenerateReport }: AnalysisResultsProp
   useEffect(() => {
     const fetchAnalysisJob = async () => {
       try {
-        const response = await fetch(`/api/analysis/${jobId}`)
+        const response = await fetchFromApi(`/analysis/${jobId}`) // Use the helper
         if (!response.ok) {
           throw new Error("Failed to fetch analysis results")
         }
@@ -45,7 +46,9 @@ export function AnalysisResults({ jobId, onGenerateReport }: AnalysisResultsProp
       }
     }
 
-    fetchAnalysisJob()
+    if (jobId) {
+      fetchAnalysisJob()
+    }
   }, [jobId])
 
   if (loading) {

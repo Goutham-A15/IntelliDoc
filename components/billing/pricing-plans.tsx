@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Check, Crown, Zap, FileText } from "lucide-react"
 import { SUBSCRIPTION_PLANS, type SubscriptionPlan } from "@/lib/billing/subscription-plans"
 import { useToast } from "@/hooks/use-toast"
+import { fetchFromApi } from "@/lib/api-client"
 
 interface PricingPlansProps {
   currentPlan?: string
@@ -32,20 +33,12 @@ export function PricingPlans({ currentPlan = "free" }: PricingPlansProps) {
 
     setLoading(planId)
     try {
-        // This part will now only run for downgrading to the free plan
-        const response = await fetch("/api/billing/checkout", {
+        const response = await fetchFromApi("/billing/checkout", { // Use the helper
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ planId }),
         })
-
-        if (!response.ok) {
-          throw new Error("Failed to create checkout session")
-        }
-
         const { checkoutUrl } = await response.json()
         window.location.href = checkoutUrl
-      
     } catch (error) {
       toast({
         title: "Error",

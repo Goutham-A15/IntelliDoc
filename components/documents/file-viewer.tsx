@@ -5,6 +5,7 @@ import { Document } from "@/lib/types/database"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { X } from "lucide-react"
+import { fetchFromApi } from "@/lib/api-client";
 
 interface FileViewerProps {
   document: Document | null
@@ -17,31 +18,27 @@ export function FileViewer({ document, onClose }: FileViewerProps) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!document) return
+    if (!document) return;
 
     const fetchSignedUrl = async () => {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
       try {
-        const response = await fetch("/api/documents/view", {
+        const response = await fetchFromApi("/documents/view", { // Use the helper
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ storagePath: document.storage_path }),
-        })
-
-        if (!response.ok) throw new Error("Failed to get file URL")
-        const data = await response.json()
-        setSignedUrl(data.signedUrl)
-
+        });
+        const data = await response.json();
+        setSignedUrl(data.signedUrl);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An unknown error occurred")
+        setError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchSignedUrl()
-  }, [document])
+    fetchSignedUrl();
+  }, [document]);
 
   if (!document) return null
 

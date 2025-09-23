@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText, BarChart3, Download, TrendingUp } from "lucide-react"
+import { fetchFromApi } from "@/lib/api-client" // Import the helper
 
-interface DashboardStats {
+interface DashboardStatsData {
   totalDocuments: number
   totalAnalyses: number
   totalReports: number
@@ -12,13 +13,13 @@ interface DashboardStats {
 }
 
 export function DashboardStats() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [stats, setStats] = useState<DashboardStatsData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch("/api/dashboard/stats")
+        const response = await fetchFromApi("/dashboard/stats") // Use the helper
         if (response.ok) {
           const data = await response.json()
           setStats(data)

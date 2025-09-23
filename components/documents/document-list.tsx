@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Trash2, FileText, Calendar, GitCompareArrows, Eye, Check, AlertTriangle, MessageSquareCode } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
-import type { Document, AnalysisJob } from "@/lib/types/database"
-import { FileViewer } from "./file-viewer"
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Trash2, FileText, Calendar, GitCompareArrows, Eye, Check, AlertTriangle, MessageSquareCode } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import type { Document, AnalysisJob } from "@/lib/types/database";
+import { FileViewer } from "./file-viewer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,20 +17,19 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { cn } from "@/lib/utils"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { fetchFromApi } from "@/lib/api-client";
 
-// CORRECTED: This interface was missing.
 interface DocumentWithAnalysis extends Document {
-  analysis_jobs: AnalysisJob[]
+  analysis_jobs: AnalysisJob[];
 }
 
-// CORRECTED: The onCompare prop now matches the data being sent.
 interface DocumentListProps {
   onCompare: (documents: { id: string; name: string; text_storage_path?: string | null }[]) => void;
-  onDelete: (documentId: string) => void
-  refreshTrigger?: number
+  onDelete: (documentId: string) => void;
+  refreshTrigger?: number;
 }
 
 const formatFileSize = (size: number) => {
@@ -39,79 +38,72 @@ const formatFileSize = (size: number) => {
     const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(size) / Math.log(k));
     return parseFloat((size / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-}
+};
 
 const getStatusBadge = (jobs: AnalysisJob[]) => {
-    if (jobs.length === 0) return <Badge variant="secondary">Not Analyzed</Badge>
+    if (jobs.length === 0) return <Badge variant="secondary">Not Analyzed</Badge>;
     const latestJob = jobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
     switch (latestJob.status) {
-        case "completed": return <Badge variant="default">Analyzed</Badge>
-        case "processing": return <Badge variant="outline">Processing</Badge>
-        case "failed": return <Badge variant="destructive">Failed</Badge>
-        default: return <Badge variant="secondary">Pending</Badge>
+        case "completed": return <Badge variant="default">Analyzed</Badge>;
+        case "processing": return <Badge variant="outline">Processing</Badge>;
+        case "failed": return <Badge variant="destructive">Failed</Badge>;
+        default: return <Badge variant="secondary">Pending</Badge>;
     }
-}
+};
 
 export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentListProps) {
-  const [documents, setDocuments] = useState<DocumentWithAnalysis[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]); // CORRECTED: Added this missing state
+  const [documents, setDocuments] = useState<DocumentWithAnalysis[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
   const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
   const [documentToDelete, setDocumentToDelete] = useState<DocumentWithAnalysis | null>(null);
   const [isExtracting, setIsExtracting] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchDocuments = async () => {
+ const fetchDocuments = useCallback(async () => {
     try {
-      setLoading(true)
-      const response = await fetch("/api/documents")
-      if (!response.ok) {
-        throw new Error("Failed to fetch documents")
-      }
-      const data = await response.json()
-      setDocuments(data.documents)
+      setLoading(true);
+      // Use the new helper
+      const response = await fetchFromApi("/documents");
+      const data = await response.json();
+      setDocuments(data.documents);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load documents")
+      setError(err instanceof Error ? err.message : "Failed to load documents");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    fetchDocuments()
-  }, [refreshTrigger])
-
+    fetchDocuments();
+  }, [refreshTrigger, fetchDocuments]);
 
   const handleDelete = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/documents?id=${documentId}`, {
+      // Use the new helper
+      await fetchFromApi(`/documents/${documentId}`, {
         method: "DELETE",
-      })
-      if (!response.ok) {
-        throw new Error("Failed to delete document")
-      }
-      setDocuments((prev) => prev.filter((doc) => doc.id !== documentId))
-      onDelete(documentId)
+      });
+      setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
+      onDelete(documentId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete document")
+      setError(err instanceof Error ? err.message : "Failed to delete document");
     } finally {
       setDocumentToDelete(null);
     }
-  }
+  };
 
   const handleSelectForComparison = (doc: DocumentWithAnalysis) => {
-    // 1. Check if the text has been extracted for the selected document.
     if (!doc.text_storage_path) {
       toast({
         title: "Text Not Extracted",
         description: `Please click "Extract Text" for "${doc.filename}" before selecting it for comparison.`,
         variant: "destructive",
       });
-      return; // Stop the function here
+      return;
     }
 
-    // 2. If text is extracted, proceed with the selection logic.
     setSelectedForComparison(prev => {
         const isSelected = prev.includes(doc.id);
         if (isSelected) {
@@ -120,17 +112,16 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentLi
         if(prev.length < 2) {
             return [...prev, doc.id];
         }
-        // Replace the oldest selection with the new one
         return [prev[1], doc.id];
     });
-  }
+  };
 
   const handleCompareClick = () => {
     if (selectedForComparison.length === 2) {
         const docsToCompare = documents
             .filter(doc => selectedForComparison.includes(doc.id))
-            .map(doc => ({ 
-                id: doc.id, 
+            .map(doc => ({
+                id: doc.id,
                 name: doc.filename,
                 text_storage_path: doc.text_storage_path
             }));
@@ -143,16 +134,11 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentLi
     toast({ title: "Extraction Started", description: `Extracting text from "${document.filename}"...` });
 
     try {
-        const response = await fetch("/api/documents/extract-and-save-text", {
+        // Use the new helper
+        await fetchFromApi("/documents/extract-and-save-text", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ documentId: document.id }),
         });
-
-        if (!response.ok) {
-            const result = await response.json();
-            throw new Error(result.error || "An unknown server error occurred.");
-        }
 
         toast({
             title: "Extraction Successful!",
@@ -169,12 +155,14 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentLi
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-  if (error) return <Card><CardContent className="p-6 text-center"><p className="text-red-500">{error}</p><Button onClick={fetchDocuments} className="mt-4">Try Again</Button></CardContent></Card>
-  if (documents.length === 0) return <Card><CardContent className="p-8 text-center"><FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" /><h3 className="text-lg font-medium mb-2">No documents found</h3><p className="text-muted-foreground">Upload your first document to get started.</p></CardContent></Card>
+
+  if (loading) return <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  if (error) return <Card><CardContent className="p-6 text-center"><p className="text-red-500">{error}</p><Button onClick={fetchDocuments} className="mt-4">Try Again</Button></CardContent></Card>;
+  if (documents.length === 0) return <Card><CardContent className="p-8 text-center"><FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" /><h3 className="text-lg font-medium mb-2">No documents found</h3><p className="text-muted-foreground">Upload your first document to get started.</p></CardContent></Card>;
 
   return (
     <div className="space-y-4">
+       <p className="text-sm text-muted-foreground">Click Extract Text, then select the two documents you want to compare.</p>
       {viewingDocument && <FileViewer document={viewingDocument} onClose={() => setViewingDocument(null)} />}
       {selectedForComparison.length === 2 && (
           <div className="p-4 bg-primary/10 rounded-lg flex items-center justify-between animate-in fade-in-50">
@@ -186,8 +174,8 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentLi
         const isSelectedForComparison = selectedForComparison.includes(document.id);
         const isTextExtracted = !!document.text_storage_path;
         return (
-        <Card 
-            key={document.id} 
+        <Card
+            key={document.id}
             className={cn("transition-all", isSelectedForComparison ? "border-primary ring-2 ring-primary ring-offset-2" : "")}
         >
           <CardHeader className="pb-3 cursor-pointer" onClick={() => handleSelectForComparison(document)}>

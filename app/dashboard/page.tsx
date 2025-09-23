@@ -10,28 +10,31 @@ import { UsageMeter } from "@/components/billing/usage-meter"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { FileText, BarChart3, Download, Upload, GitCompareArrows } from "lucide-react" // CORRECTED: Added GitCompareArrows
+import { FileText, BarChart3, Download, Upload, GitCompareArrows } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import type { Document } from "@/lib/types/database"
 import { motion } from "framer-motion"
-import { ComparisonResults } from "@/components/analysis/comparison-results" // CORRECTED: Added missing import
+import { ComparisonResults } from "@/components/analysis/comparison-results"
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("upload")
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [selectedAnalysisJobId, setSelectedAnalysisJobId] = useState<string | null>(null)
   const [comparisonDocuments, setComparisonDocuments] = useState<{ id: string, name: string, text_storage_path?: string | null }[]>([])
+  const [comparisonResult, setComparisonResult] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const { toast } = useToast()
   const router = useRouter()
+
+  const triggerRefresh = () => setRefreshTrigger(prev => prev + 1);
 
   const handleUploadComplete = () => {
     toast({
       title: "Upload Successful",
       description: "Your file(s) have been uploaded successfully.",
     })
-    setRefreshTrigger((prev) => prev + 1)
+    triggerRefresh(); // CORRECTED: Use the new handler
     setActiveTab("documents")
   }
 
@@ -46,11 +49,16 @@ export default function DashboardPage() {
   }
 
   const handleDeleteDocument = () => {
-    setRefreshTrigger((prev) => prev + 1)
+    triggerRefresh(); // CORRECTED: Use the new handler
     toast({
       title: "Document Deleted",
       description: "Document has been removed successfully",
     })
+  }
+
+  const handleAnalysisComplete = (result: any) => {
+      setComparisonResult(result);
+      triggerRefresh(); // This will update the usage meter
   }
 
   const handleUpgradeClick = () => {
@@ -69,7 +77,8 @@ export default function DashboardPage() {
           <div className="grid lg:grid-cols-4 gap-8">
             <div className="lg:col-span-1">
               <div className="space-y-6">
-                <UsageMeter onUpgrade={handleUpgradeClick} />
+                {/* CORRECTED: Pass the refreshTrigger prop here */}
+                <UsageMeter onUpgrade={handleUpgradeClick} refreshTrigger={refreshTrigger} />
                 <Card>
                   <CardHeader><CardTitle className="text-lg">Quick Actions</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
@@ -99,7 +108,8 @@ export default function DashboardPage() {
                 </TabsContent>
                 <TabsContent value="documents" className="space-y-6">
                   <Card>
-                    <CardHeader><CardTitle>Your Documents</CardTitle><p className="text-sm text-muted-foreground">Click on two documents to select them for comparison.</p></CardHeader>
+                    <CardHeader><CardTitle>Your Documents</CardTitle><p className="text-sm text-muted-foreground"></p></CardHeader>
+                    {/* CORRECTED: Pass the refreshTrigger prop here */}
                     <CardContent><DocumentList onCompare={handleCompareDocuments} onDelete={handleDeleteDocument} refreshTrigger={refreshTrigger} /></CardContent>
                   </Card>
                 </TabsContent>
@@ -112,7 +122,11 @@ export default function DashboardPage() {
                 </TabsContent>
                 <TabsContent value="comparison" className="space-y-6">
                   {comparisonDocuments.length === 2 ? (
-                    <ComparisonResults documents={comparisonDocuments} />
+                    <ComparisonResults 
+                      documents={comparisonDocuments} 
+                      onAnalysisComplete={handleAnalysisComplete}
+                      initialData={comparisonResult}
+                    />
                   ) : (
                     <Card>
                       <CardContent className="p-8 text-center">

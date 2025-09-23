@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, FileText, Code, Globe } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { fetchFromApi } from "@/lib/api-client";
 
 interface ReportGeneratorProps {
   analysisJobId: string
@@ -21,16 +22,13 @@ export function ReportGenerator({ analysisJobId, documentName }: ReportGenerator
     setIsGenerating(true)
 
     try {
-      const response = await fetch("/api/reports/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          analysisJobId,
-          reportType,
-        }),
-      })
+      const response = await fetchFromApi("/reports/generate", { // Use the helper
+          method: "POST",
+          body: JSON.stringify({
+            analysisJobId,
+            reportType,
+          }),
+      });
 
       if (!response.ok) {
         const error = await response.json()

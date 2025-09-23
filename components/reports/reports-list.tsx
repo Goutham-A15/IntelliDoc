@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Download, Calendar } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
+import { fetchFromApi } from "@/lib/api-client";
 
 interface Report {
   id: string
@@ -37,21 +38,20 @@ export function ReportsList() {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const response = await fetch("/api/reports")
+        const response = await fetchFromApi("/reports"); // Use the helper
         if (!response.ok) {
-          throw new Error("Failed to fetch reports")
+          throw new Error("Failed to fetch reports");
         }
-        const data = await response.json()
-        setReports(data.reports)
+        const data = await response.json();
+        setReports(data.reports);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load reports")
+        setError(err instanceof Error ? err.message : "Failed to load reports");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-
-    fetchReports()
-  }, [])
+    };
+    fetchReports();
+  }, []);
 
   const getReportTypeIcon = (type: string) => {
     return <FileText className="h-4 w-4" />

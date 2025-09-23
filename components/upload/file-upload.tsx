@@ -5,8 +5,9 @@ import { useDropzone } from "react-dropzone"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Upload, File, X, CheckCircle, AlertCircle } from "lucide-react"
+import { Upload, File as FileIcon, X, CheckCircle, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { fetchFromApi } from "@/lib/api-client";
 
 interface FileUploadProps {
   onUploadComplete: () => void
@@ -17,7 +18,7 @@ interface FileUploadProps {
 }
 
 interface UploadFile {
-  file: File
+  file: File 
   id: string
   progress: number
   status: "pending" | "uploading" | "success" | "error"
@@ -27,7 +28,7 @@ interface UploadFile {
 export function FileUpload({
   onUploadComplete,
   maxFiles = 5,
-  maxSize = 10 * 1024 * 1024, // 10MB
+  maxSize = 10 * 1024 * 1024, 
   disabled = false,
 }: FileUploadProps) {
   const [files, setFiles] = useState<UploadFile[]>([])
@@ -82,21 +83,16 @@ export function FileUpload({
       ),
     )
 
-    const formData = new FormData()
+   const formData = new FormData();
     filesToUpload.forEach((uploadFile) => {
-      formData.append("files", uploadFile.file)
-    })
+      formData.append("files", uploadFile.file);
+    });
 
     try {
-      const response = await fetch("/api/upload", {
+      const response = await fetchFromApi("/documents/upload", {
         method: "POST",
         body: formData,
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Upload failed")
-      }
+      });
 
       setFiles((prev) =>
         prev.map((f) =>
@@ -133,7 +129,7 @@ export function FileUpload({
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         )
       default:
-        return <File className="h-4 w-4 text-muted-foreground" />
+        return <FileIcon className="h-4 w-4 text-muted-foreground" />
     }
   }
 

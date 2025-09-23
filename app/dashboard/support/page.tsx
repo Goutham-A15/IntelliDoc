@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { LifeBuoy, Mail, Phone } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-provider"
+import { fetchFromApi } from "@/lib/api-client";
 
 export default function SupportPage() {
   const { user } = useAuth()
@@ -25,18 +26,10 @@ export default function SupportPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/support", {
+        await fetchFromApi("/support", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({ name, email, subject, message }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Failed to submit ticket")
-      }
+      });
 
       toast({
         title: "Success!",
@@ -50,7 +43,7 @@ export default function SupportPage() {
         title: "Submission Failed",
         description: error instanceof Error ? error.message : "An unknown error occurred.",
         variant: "destructive",
-      })
+      });
     } finally {
       setIsLoading(false)
     }

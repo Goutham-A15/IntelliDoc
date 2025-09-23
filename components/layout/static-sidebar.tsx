@@ -21,8 +21,8 @@ import { Progress } from "@/components/ui/progress";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
-  { name: "AI Insights", href: "/dashboard?tab=insights", icon: Sparkles },
-  { name: "History", href: "/dashboard?tab=history", icon: History },
+  // CORRECTED: Updated the href for the History link
+  { name: "History", href: "/dashboard/history", icon: History }, 
   { name: "Comparison", href: "/dashboard?tab=comparison", icon: GitCompareArrows },
   { name: "Billing", href: "/billing", icon: CreditCard },
 ];

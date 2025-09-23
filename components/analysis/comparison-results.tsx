@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { AlertTriangle, CheckCircle, Sparkles, Loader2 } from "lucide-react"
 import { Badge } from "../ui/badge"
+import { fetchFromApi } from "@/lib/api-client"
 
 interface DocumentInput {
     id: string;
@@ -12,7 +13,9 @@ interface DocumentInput {
 }
 
 interface ComparisonResultsProps {
-  documents: DocumentInput[]
+  documents: DocumentInput[];
+  onAnalysisComplete: (result: AIAnalysisResult) => void;
+  initialData: AIAnalysisResult | null;
 }
 
 interface Contradiction {
@@ -20,7 +23,7 @@ interface Contradiction {
     statement1: string;
     statement2: string;
     explanation: string;
-    severity: 'low' | 'medium' | 'high';
+    severity?: 'low' | 'medium' | 'high';
 }
 
 interface AIAnalysisResult {
@@ -28,28 +31,27 @@ interface AIAnalysisResult {
     contradictions: Contradiction[];
 }
 
-// Helper to fetch a single text file's content
-async function fetchExtractedText(doc: DocumentInput): Promise<{name: string; text: string}> {
+async function fetchExtractedText(doc: DocumentInput): Promise<{id: string; name: string; text: string}> {
     if (!doc.text_storage_path) {
         throw new Error(`Text has not been extracted for "${doc.name}".`);
     }
-    const response = await fetch('/api/documents/get-extracted-text', {
+    const response = await fetchFromApi('/documents/get-extracted-text', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ textPath: doc.text_storage_path }),
     });
     if (!response.ok) throw new Error(`Server failed to fetch the text file for "${doc.name}".`);
     const text = await response.text();
-    return { name: doc.name, text };
+    // Pass the ID through
+    return { id: doc.id, name: doc.name, text };
 }
 
-export function ComparisonResults({ documents }: ComparisonResultsProps) {
-  const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
-  const [loading, setLoading] = useState(true);
+export function ComparisonResults({ documents, onAnalysisComplete, initialData }: ComparisonResultsProps) {
+  const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(initialData);
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (documents.length !== 2) return;
+    if (initialData || documents.length !== 2) return;
 
     const runComparison = async () => {
       setLoading(true);
@@ -57,23 +59,22 @@ export function ComparisonResults({ documents }: ComparisonResultsProps) {
       setAnalysisResult(null);
 
       try {
-        // Step 1: Fetch both extracted texts concurrently.
         const [doc1, doc2] = await Promise.all(documents.map(fetchExtractedText));
 
-        // Step 2: Send the fetched texts to the AI for comparison.
-        const response = await fetch('/api/compare-documents', {
+        // --- FIX: Add the document IDs to the request body ---
+        const response = await fetchFromApi('/analyze/comparison', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 document1: { name: doc1.name, text: doc1.text },
-                document2: { name: doc2.name, text: doc2.text }
+                document2: { name: doc2.name, text: doc2.text },
+                documentIds: [doc1.id, doc2.id] // This was the missing piece
             })
         });
+        // --- END FIX ---
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'The AI analysis failed.');
-
         setAnalysisResult(data);
+        onAnalysisComplete(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred.');
       } finally {
@@ -82,15 +83,13 @@ export function ComparisonResults({ documents }: ComparisonResultsProps) {
     };
 
     runComparison();
-  }, [documents]);
+  }, [documents, initialData, onAnalysisComplete]);
 
-  const getSeverityBadge = (severity: Contradiction['severity']) => {
-    const variants = {
-        low: 'secondary',
-        medium: 'default',
-        high: 'destructive'
-    } as const;
-    return <Badge variant={variants[severity]}>{severity.charAt(0).toUpperCase() + severity.slice(1)}</Badge>;
+  const getSeverityBadge = (severity?: Contradiction['severity']) => {
+    const currentSeverity = severity || 'medium';
+    const variants = { low: 'secondary', medium: 'default', high: 'destructive' } as const;
+    const variantKey = variants[currentSeverity] ? currentSeverity : 'medium';
+    return <Badge variant={variants[variantKey]}>{currentSeverity.charAt(0).toUpperCase() + currentSeverity.slice(1)}</Badge>;
   }
 
   if (loading) {
@@ -111,7 +110,7 @@ export function ComparisonResults({ documents }: ComparisonResultsProps) {
   }
 
   if (!analysisResult) {
-    return null; // Should not happen if not loading and no error
+    return null;
   }
 
   return (
@@ -136,6 +135,7 @@ export function ComparisonResults({ documents }: ComparisonResultsProps) {
                             <div key={item.id} className="p-4 border rounded-lg space-y-3">
                                 <div className="flex justify-between items-start">
                                     <p className="font-medium text-destructive">Contradiction Detected</p>
+                                    {/* This call is now safe */}
                                     {getSeverityBadge(item.severity)}
                                 </div>
                                 <div>
