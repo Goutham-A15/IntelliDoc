@@ -1,4 +1,4 @@
-const { supabaseAdmin } = require('../config/supabaseClient');
+const { supabaseAuth } = require('../config/supabaseClient');
 
 const authMiddleware = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -8,7 +8,7 @@ const authMiddleware = async (req, res, next) => {
   }
 
   try {
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    const { data: { user }, error } = await supabaseAuth.auth.getUser(token);
 
     if (error || !user) {
       return res.status(401).json({ error: 'Invalid token' });
@@ -17,6 +17,7 @@ const authMiddleware = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    console.error("Auth error:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

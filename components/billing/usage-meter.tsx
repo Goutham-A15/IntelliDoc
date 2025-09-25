@@ -1,8 +1,8 @@
+// NodeTest/components/billing/usage-meter.tsx
 "use client"
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { BarChart3, FileText, Zap, Crown } from "lucide-react"
@@ -10,11 +10,10 @@ import { getPlanById } from "@/lib/billing/subscription-plans"
 import { fetchFromApi } from "@/lib/api-client"
 
 export interface UsageData {
-  current_usage: number
-  usage_limit: number
-  subscription_tier: string
-  documents_this_month: number
-  reports_generated: number
+  credits: number;
+  subscription_tier: string;
+  operations_performed: number;
+  documents_uploaded: number;
 }
 
 interface UsageMeterProps {
@@ -41,10 +40,7 @@ export function UsageMeter({ onUpgrade, refreshTrigger }: UsageMeterProps) {
         setLoading(false)
       }
     }
-
     fetchUsage()
-    // CORRECTED: Added refreshTrigger to the dependency array.
-    // This tells the component to re-run this effect whenever the trigger changes.
   }, [refreshTrigger]) 
 
   if (loading) {
@@ -53,8 +49,7 @@ export function UsageMeter({ onUpgrade, refreshTrigger }: UsageMeterProps) {
         <CardContent className="p-6">
           <div className="animate-pulse space-y-4">
             <div className="h-4 bg-muted rounded w-1/3"></div>
-            <div className="h-2 bg-muted rounded"></div>
-            <div className="h-4 bg-muted rounded w-1/2"></div>
+            <div className="h-8 bg-muted rounded w-1/4"></div>
           </div>
         </CardContent>
       </Card>
@@ -72,27 +67,19 @@ export function UsageMeter({ onUpgrade, refreshTrigger }: UsageMeterProps) {
   }
 
   const plan = getPlanById(usage.subscription_tier)
-  const usagePercentage = usage.usage_limit > 0 ? (usage.current_usage / usage.usage_limit) * 100 : 0
-  const isNearLimit = usagePercentage >= 80
-  const isOverLimit = usagePercentage >= 100
+  const isNearLimit = usage.credits <= 10; 
+  const isOverLimit = usage.credits <= 0;
 
   const getTierIcon = (tier: string) => {
     switch (tier) {
-      case "enterprise":
-        return <Crown className="h-4 w-4 text-yellow-500" />
-      case "pro":
-        return <Zap className="h-4 w-4 text-blue-500" />
-      default:
-        return <FileText className="h-4 w-4 text-gray-500" />
+      case "enterprise": return <Crown className="h-4 w-4 text-yellow-500" />
+      case "pro": return <Zap className="h-4 w-4 text-blue-500" />
+      default: return <FileText className="h-4 w-4 text-gray-500" />
     }
   }
 
   const getTierBadge = (tier: string) => {
-    const variants = {
-      free: "secondary",
-      pro: "default",
-      enterprise: "destructive",
-    } as const;
+    const variants = { free: "secondary", pro: "default", enterprise: "destructive" } as const;
     return (
       <Badge variant={variants[tier as keyof typeof variants] || "secondary"} className="flex items-center gap-1">
         {getTierIcon(tier)}
@@ -113,39 +100,26 @@ export function UsageMeter({ onUpgrade, refreshTrigger }: UsageMeterProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Document Analyses</span>
-            <span className="text-sm text-muted-foreground">
-              {usage.current_usage} / {usage.usage_limit === -1 ? "∞" : usage.usage_limit}
-            </span>
-          </div>
-          <Progress
-            value={usage.usage_limit === -1 ? 0 : usagePercentage}
-            className={`h-2 ${isOverLimit ? "bg-red-100" : isNearLimit ? "bg-yellow-100" : ""}`}
-          />
-          {isOverLimit && <p className="text-xs text-red-500 mt-1">Usage limit exceeded</p>}
-          {isNearLimit && !isOverLimit && <p className="text-xs text-yellow-600 mt-1">Approaching usage limit</p>}
-        </div>
-        <div className="grid grid-cols-2 gap-4">
+         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-muted/50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">{usage.documents_this_month}</div>
+            {/* --- FIX: Use the correct 'documents_uploaded' field --- */}
+            <div className="text-2xl font-bold text-blue-600">{usage.documents_uploaded}</div>
             <div className="text-xs text-muted-foreground">Documents Uploaded</div>
           </div>
           <div className="text-center p-3 bg-muted/50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">{usage.reports_generated}</div>
-            <div className="text-xs text-muted-foreground">Reports Generated</div>
+            <div className="text-2xl font-bold text-green-600">{usage.operations_performed}</div>
+            <div className="text-xs text-muted-foreground">Operations Performed</div>
           </div>
         </div>
         {(isNearLimit || usage.subscription_tier === "free") && onUpgrade && (
           <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-medium text-sm">{isOverLimit ? "Upgrade Required" : "Need More Analyses?"}</h4>
+                <h4 className="font-medium text-sm">{isOverLimit ? "Upgrade Required" : "Need More Credits?"}</h4>
                 <p className="text-xs text-muted-foreground">
                   {isOverLimit
-                    ? "You've exceeded your limit. Upgrade to continue."
-                    : "Upgrade for more analyses and advanced features."}
+                    ? "You've used all your credits. Upgrade to continue."
+                    : "Upgrade for more credits and advanced features."}
                 </p>
               </div>
               <Button size="sm" onClick={onUpgrade}>Upgrade</Button>

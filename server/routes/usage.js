@@ -1,3 +1,4 @@
+// NodeTest/server/routes/usage.js
 const express = require('express');
 const authMiddleware = require('../middleware/authMiddleware');
 const { supabaseAdmin } = require('../config/supabaseClient');
@@ -7,39 +8,29 @@ router.get('/', authMiddleware, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // 1. Get user data (this is for the 'Document Analyses' count)
+        // 1. Get user data, including the new documents_uploaded count
         const { data: userData, error: userError } = await supabaseAdmin
             .from('users')
-            .select('usage_count, usage_limit, subscription_tier')
+            .select('credits, subscription_tier, documents_uploaded') // <-- Added documents_uploaded
             .eq('id', userId)
             .single();
 
         if (userError) throw userError;
 
-        // --- FIX: Correctly count the total number of documents uploaded ---
-        // This performs a live count on the documents table for the current user.
-        const { count: totalDocuments, error: documentsError } = await supabaseAdmin
-            .from('documents')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId);
-        
-        if (documentsError) throw documentsError;
-        // --- END FIX ---
-
-        // (The reports count logic is kept for future use)
-        const { count: reportsGenerated, error: reportsError } = await supabaseAdmin
-            .from('reports')
+        // 2. Get the total count of operations from the log table
+        const { count: operationsCount, error: countError } = await supabaseAdmin
+            .from('operation_logs')
             .select('*', { count: 'exact', head: true })
             .eq('user_id', userId);
 
-        if (reportsError) console.error("Error counting reports:", reportsError.message);
+        if (countError) throw countError;
 
+        // 3. Send back all the data
         res.json({
-            current_usage: userData.usage_count, // This is now ONLY for Document Analyses
-            usage_limit: userData.usage_limit,
+            credits: userData.credits,
             subscription_tier: userData.subscription_tier,
-            documents_this_month: totalDocuments || 0, // This is the new, correct count for uploaded docs
-            reports_generated: reportsGenerated || 0,
+            operations_performed: operationsCount || 0,
+            documents_uploaded: userData.documents_uploaded || 0, // <-- Use the direct column value
         });
     } catch (error) {
         console.error("Error in /api/usage:", error.message);

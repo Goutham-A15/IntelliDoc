@@ -1,10 +1,11 @@
+// NodeTest/components/documents/document-list.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, FileText, Calendar, GitCompareArrows, Eye, Check, AlertTriangle, MessageSquareCode } from "lucide-react";
+import { Trash2, FileText, Calendar, GitCompareArrows, Eye, Check, AlertTriangle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { Document, AnalysisJob } from "@/lib/types/database";
 import { FileViewer } from "./file-viewer";
@@ -30,6 +31,7 @@ interface DocumentListProps {
   onCompare: (documents: { id: string; name: string; text_storage_path?: string | null }[]) => void;
   onDelete: (documentId: string) => void;
   refreshTrigger?: number;
+  comparisonCompletedIds?: string[];
 }
 
 const formatFileSize = (size: number) => {
@@ -40,7 +42,8 @@ const formatFileSize = (size: number) => {
     return parseFloat((size / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
-const getStatusBadge = (jobs: AnalysisJob[]) => {
+const getStatusBadge = (jobs: AnalysisJob[], isCompleted: boolean) => {
+    if (isCompleted) return <Badge variant="default">Comparison Completed</Badge>;
     if (jobs.length === 0) return <Badge variant="secondary">Not Analyzed</Badge>;
     const latestJob = jobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
     switch (latestJob.status) {
@@ -51,20 +54,18 @@ const getStatusBadge = (jobs: AnalysisJob[]) => {
     }
 };
 
-export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentListProps) {
+export function DocumentList({ onCompare, onDelete, refreshTrigger, comparisonCompletedIds = [] }: DocumentListProps) {
   const [documents, setDocuments] = useState<DocumentWithAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
   const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
   const [documentToDelete, setDocumentToDelete] = useState<DocumentWithAnalysis | null>(null);
-  const [isExtracting, setIsExtracting] = useState<string | null>(null);
   const { toast } = useToast();
 
  const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      // Use the new helper
       const response = await fetchFromApi("/documents");
       const data = await response.json();
       setDocuments(data.documents);
@@ -81,7 +82,6 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentLi
 
   const handleDelete = async (documentId: string) => {
     try {
-      // Use the new helper
       await fetchFromApi(`/documents/${documentId}`, {
         method: "DELETE",
       });
@@ -95,29 +95,17 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentLi
   };
 
   const handleSelectForComparison = (doc: DocumentWithAnalysis) => {
-    if (!doc.text_storage_path) {
-      toast({
-        title: "Text Not Extracted",
-        description: `Please click "Extract Text" for "${doc.filename}" before selecting it for comparison.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     setSelectedForComparison(prev => {
         const isSelected = prev.includes(doc.id);
         if (isSelected) {
             return prev.filter(id => id !== doc.id);
         }
-        if(prev.length < 2) {
-            return [...prev, doc.id];
-        }
-        return [prev[1], doc.id];
+        return [...prev, doc.id];
     });
   };
 
-  const handleCompareClick = () => {
-    if (selectedForComparison.length === 2) {
+  const handleCompareClick = async () => {
+    if (selectedForComparison.length >= 2) {
         const docsToCompare = documents
             .filter(doc => selectedForComparison.includes(doc.id))
             .map(doc => ({
@@ -125,36 +113,16 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentLi
                 name: doc.filename,
                 text_storage_path: doc.text_storage_path
             }));
-      onCompare(docsToCompare);
-    }
-  };
-
-  const handleExtractText = async (document: DocumentWithAnalysis) => {
-    setIsExtracting(document.id);
-    toast({ title: "Extraction Started", description: `Extracting text from "${document.filename}"...` });
-
-    try {
-        // Use the new helper
-        await fetchFromApi("/documents/extract-and-save-text", {
-            method: "POST",
-            body: JSON.stringify({ documentId: document.id }),
-        });
-
-        toast({
-            title: "Extraction Successful!",
-            description: `Text from "${document.filename}" is now ready for comparison.`,
-        });
         
-        fetchDocuments(); // Refresh list to show the "Ready to Compare" badge
-
-    } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Failed to extract text.";
-        toast({ title: "Extraction Failed", description: errorMessage, variant: "destructive" });
-    } finally {
-        setIsExtracting(null);
+        onCompare(docsToCompare);
+    } else {
+        toast({
+            title: "Select Documents",
+            description: "Please select at least two documents to compare.",
+            variant: "destructive"
+        })
     }
   };
-
 
   if (loading) return <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
   if (error) return <Card><CardContent className="p-6 text-center"><p className="text-red-500">{error}</p><Button onClick={fetchDocuments} className="mt-4">Try Again</Button></CardContent></Card>;
@@ -162,21 +130,22 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentLi
 
   return (
     <div className="space-y-4">
-       <p className="text-sm text-muted-foreground">Click Extract Text, then select the two documents you want to compare.</p>
+       <p className="text-sm text-muted-foreground">Select two or more documents you want to compare.</p>
       {viewingDocument && <FileViewer document={viewingDocument} onClose={() => setViewingDocument(null)} />}
-      {selectedForComparison.length === 2 && (
+        {selectedForComparison.length >= 2 && (
           <div className="p-4 bg-primary/10 rounded-lg flex items-center justify-between animate-in fade-in-50">
-              <p className="text-sm font-medium">Ready to compare 2 documents.</p>
+              <p className="text-sm font-medium">Ready to compare {selectedForComparison.length} documents.</p>
               <Button size="sm" onClick={handleCompareClick}><GitCompareArrows className="h-4 w-4 mr-2" />Compare Now</Button>
           </div>
-      )}
+        )}
       {documents.map((document) => {
         const isSelectedForComparison = selectedForComparison.includes(document.id);
-        const isTextExtracted = !!document.text_storage_path;
+        const isComparisonCompleted = comparisonCompletedIds.includes(document.id);
+
         return (
         <Card
             key={document.id}
-            className={cn("transition-all", isSelectedForComparison ? "border-primary ring-2 ring-primary ring-offset-2" : "")}
+            className={cn("transition-all", isSelectedForComparison ? "border-primary ring-2 ring-primary ring-offset-2" : "", isComparisonCompleted ? "border-green-500" : "")}
         >
           <CardHeader className="pb-3 cursor-pointer" onClick={() => handleSelectForComparison(document)}>
             <div className="flex items-center justify-between">
@@ -185,9 +154,8 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentLi
                     {isSelectedForComparison && <Check className="h-4 w-4" />}
                  </div>
                 <CardTitle className="text-lg font-medium">{document.filename}</CardTitle>
-                {isTextExtracted && <Badge variant="secondary">Ready to Compare</Badge>}
               </div>
-              {getStatusBadge(document.analysis_jobs)}
+              {getStatusBadge(document.analysis_jobs, isComparisonCompleted)}
             </div>
           </CardHeader>
           <CardContent>
@@ -197,10 +165,6 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentLi
                 <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{formatDistanceToNow(new Date(document.created_at), { addSuffix: true })}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleExtractText(document); }} disabled={isExtracting === document.id}>
-                    {isExtracting === document.id ? (<div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" />) : (<MessageSquareCode className="h-4 w-4 mr-2" />)}
-                    Extract Text
-                </Button>
                 <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setViewingDocument(document); }}><Eye className="h-4 w-4 mr-2" />View</Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setDocumentToDelete(document); }}><Trash2 className="h-4 w-4" /></Button>
               </div>

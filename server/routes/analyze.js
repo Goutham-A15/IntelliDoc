@@ -1,82 +1,114 @@
+// NodeTest/server/routes/analyze.js
 const express = require('express');
 const { geminiModel } = require('../utils/geminiClient');
-const { extractTextFromDocument } = require('../utils/textExtractor');
 const { supabaseAdmin } = require('../config/supabaseClient');
 const authMiddleware = require('../middleware/authMiddleware');
+const { extractTextFromDocument } = require('../utils/textExtractor');
 
 const router = express.Router();
 
-// --- NEW HELPER FUNCTION: Adds a delay ---
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const OPERATION_COST = 1; 
 
-// POST /api/analyze (for single documents)
-// POST /api/analyze/comparison
 // POST /api/analyze/comparison
 router.post('/comparison', authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+  
   try {
-    const { document1, document2, documentIds } = req.body;
-    const userId = req.user.id;
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('credits')
+      .eq('id', userId)
+      .single();
 
-    if (!document1?.text || !document2?.text || !documentIds || documentIds.length !== 2) {
-      return res.status(400).json({ error: "Two documents with text and IDs are required." });
+    if (userError) throw new Error('User not found.');
+    if (user.credits < OPERATION_COST) {
+      return res.status(402).json({ error: "Insufficient credits to perform this operation." });
     }
 
+    const { documentIds } = req.body;
+
+    if (!documentIds || documentIds.length < 2) {
+      return res.status(400).json({ error: "At least two document IDs are required." });
+    }
+
+    // Extract text from all documents
+    const docResults = await Promise.all(
+        documentIds.map(id => extractTextFromDocument(id, userId).then(text => ({id, text})))
+    );
+
+    const { data: docDetails, error: docDetailsError } = await supabaseAdmin
+        .from('documents')
+        .select('id, filename')
+        .in('id', documentIds);
+    
+    if (docDetailsError) throw docDetailsError;
+
+    const docNameMap = new Map(docDetails.map(d => [d.id, d.filename]));
+    
+    const documentsToAnalyze = docResults.map(doc => ({
+        name: docNameMap.get(doc.id) || `doc-${doc.id}`,
+        text: doc.text
+    }));
+
+    const documentsPromptBlock = documentsToAnalyze.map((doc, index) => 
+`DOCUMENT ${index + 1} ("${doc.name}"):
+---
+${doc.text}
+---
+`
+    ).join('\n');
+
+
     const prompt = `
-      You are an expert document analyzer. Compare DOCUMENT 1 ("${document1.name}") and DOCUMENT 2 ("${document2.name}") for contradictions.
+      You are an expert document analyzer. Compare the following ${documentsToAnalyze.length} documents for contradictions among any or all of them.
 
-      DOCUMENT 1:
-      ---
-      ${document1.text}
-      ---
-
-      DOCUMENT 2:
-      ---
-      ${document2.text}
-      ---
+      ${documentsPromptBlock}
 
       Return your findings as a valid JSON object with "summary" and "contradictions" keys.
-      - "summary": A brief, one-paragraph summary. If consistent, state that.
-      - "contradictions": An array of objects. If you find a contradiction, each object MUST have non-empty string properties: "id", "statement1", "statement2", "explanation", and a "severity" of 'low', 'medium', or 'high'.
-      - **If there are NO contradictions, you MUST return an empty array: [].**
+      - "summary": A brief, one-paragraph summary of the overall consistency across all documents.
+      - "contradictions": An array of objects. If you find a contradiction, each object MUST have:
+        - "id": a unique string ID.
+        - "explanation": a detailed explanation of why the statements contradict each other.
+        - "severity": a rating of 'low', 'medium', or 'high'.
+        - "sources": an array of at least two source objects, where each object has:
+          - "documentName": the name of the document the statement came from.
+          - "statement": the specific contradictory quote from the document.
+      - **If there are NO contradictions, you MUST return an empty array for "contradictions": [].**
       
       Respond ONLY with the raw JSON object. Ensure all strings in the JSON are properly escaped.
     `;
-    
+
     const result = await geminiModel.generateContent(prompt);
     const responseText = result.response.text();
+    const analysisResult = JSON.parse(responseText.match(/\{[\s\S]*\}/)[0]);
     
-    // --- FIX: Robust JSON Cleaning and Parsing ---
-    const jsonStringMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonStringMatch) {
-      throw new Error("AI did not return a valid JSON object.");
-    }
-    const jsonString = jsonStringMatch[0];
-    const analysisResult = JSON.parse(jsonString);
-    // --- END FIX ---
+    const newCredits = user.credits - OPERATION_COST;
 
-    // Filter out any malformed contradiction objects from the AI
-    if (analysisResult.contradictions && Array.isArray(analysisResult.contradictions)) {
-        analysisResult.contradictions = analysisResult.contradictions.filter(c => 
-            c.statement1 && c.statement2 && c.explanation
-        );
-    }
+    const { error: transactionError } = await supabaseAdmin.rpc('update_credits_and_log', {
+      p_user_id: userId,
+      p_credits_change: -OPERATION_COST,
+      p_operation_name: 'Compare Documents',
+      p_credits_used: OPERATION_COST
+    });
     
-    // Save the successful analysis to the database for history
-    await supabaseAdmin
+    if(transactionError) {
+        console.error("Credit deduction transaction failed:", transactionError);
+    }
+
+    const { error: jobError } = await supabaseAdmin
       .from('analysis_jobs')
       .insert({
         user_id: userId,
         status: 'completed',
         analysis_type: 'comparison',
-        results: analysisResult,
-        related_document_ids: documentIds 
+        results: JSON.stringify(analysisResult),
+        related_document_ids: documentIds,
+        document_names: documentsToAnalyze.map(d => d.name)
       });
 
-    // Increment usage count by 1 ONLY after a successful analysis and save
-    await supabaseAdmin.rpc('increment_usage', { user_id_in: userId, increment_value: 1 });
+    if (jobError) console.error("Analysis job insert failed:", jobError);
     
     res.json(analysisResult);
-
   } catch (error) {
     console.error("[API] /analyze/comparison error:", error.message);
     res.status(500).json({ error: "AI comparison failed due to an internal error." });

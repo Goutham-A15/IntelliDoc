@@ -1,3 +1,4 @@
+// NodeTest/components/upload/file-upload.tsx
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
@@ -8,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { Upload, File as FileIcon, X, CheckCircle, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { fetchFromApi } from "@/lib/api-client";
+import { useToast } from "@/hooks/use-toast"
 
 interface FileUploadProps {
   onUploadComplete: () => void
@@ -32,19 +34,42 @@ export function FileUpload({
   disabled = false,
 }: FileUploadProps) {
   const [files, setFiles] = useState<UploadFile[]>([])
+  const { toast } = useToast();
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      const newFiles: UploadFile[] = acceptedFiles.map((file) => ({
-        file: file,
-        id: Math.random().toString(36).substring(7),
-        progress: 0,
-        status: "pending" as const,
-      }))
-      setFiles((prev) => [...prev, ...newFiles].slice(-maxFiles))
+    (acceptedFiles: File[], fileRejections: any[]) => {
+      // --- FIX: Add frontend check for duplicates ---
+      const newFiles: UploadFile[] = [];
+      acceptedFiles.forEach((file) => {
+        // Check if a file with the same name is already in the queue
+        if (files.some(f => f.file.name === file.name)) {
+          toast({
+            title: "Duplicate File",
+            description: `"${file.name}" is already in the upload list.`,
+            variant: "destructive",
+          });
+        } else {
+          newFiles.push({
+            file: file,
+            id: Math.random().toString(36).substring(7),
+            progress: 0,
+            status: "pending" as const,
+          });
+        }
+      });
+      setFiles((prev) => [...prev, ...newFiles].slice(-maxFiles));
+
+      // Handle rejected files (e.g., size or type)
+      fileRejections.forEach((rejection) => {
+        toast({
+          title: "File Rejected",
+          description: `${rejection.file.name} - ${rejection.errors[0].message}`,
+          variant: "destructive",
+        });
+      });
     },
-    [maxFiles],
-  )
+    [maxFiles, files, toast],
+  );
 
   useEffect(() => {
     const uploadPendingFiles = async () => {
@@ -89,7 +114,7 @@ export function FileUpload({
     });
 
     try {
-      const response = await fetchFromApi("/documents/upload", {
+      await fetchFromApi("/documents/upload", {
         method: "POST",
         body: formData,
       });
