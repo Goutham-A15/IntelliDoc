@@ -1,4 +1,3 @@
-// NodeTest/app/dashboard/page.tsx
 "use client"
 
 import { useState, useEffect, useCallback, Suspense } from "react";
@@ -32,7 +31,6 @@ function DashboardComponent() {
   const [comparisonResult, setComparisonResult] = useState<any>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [analysisRunId, setAnalysisRunId] = useState<string | null>(null);
-  const [comparisonCompletedIds, setComparisonCompletedIds] = useState<string[]>([]);
 
   // State for Reports Tab
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
@@ -85,7 +83,6 @@ function DashboardComponent() {
 
   const handleAnalysisComplete = useCallback((result: any, documentIds: string[]) => {
     setComparisonResult(result);
-    setComparisonCompletedIds(documentIds);
     triggerRefresh();
   }, []);
 
@@ -160,7 +157,6 @@ function DashboardComponent() {
                     onCompare={handleCompareDocuments}
                     onDelete={handleDeleteDocument}
                     refreshTrigger={refreshTrigger}
-                    comparisonCompletedIds={comparisonCompletedIds}
                   />
                 </TabsContent>
                 <TabsContent value="comparison">

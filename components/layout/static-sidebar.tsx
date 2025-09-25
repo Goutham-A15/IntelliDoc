@@ -1,4 +1,3 @@
-// NodeTest/components/layout/static-sidebar.tsx
 "use client";
 
 import { Dispatch, SetStateAction, useState, useEffect } from "react";
@@ -75,7 +74,7 @@ export function StaticSidebar({ isExpanded, setIsExpanded }: StaticSidebarProps)
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
     >
-      <div className="flex items-center gap-2 border-b px-6 h-[60px] flex-shrink-0">
+      <div className="flex items-center gap-2 border-b px-6 h-14 flex-shrink-0">
         <FileText className="h-6 w-6 text-primary flex-shrink-0" />
         <span
           className={cn(
@@ -87,76 +86,80 @@ export function StaticSidebar({ isExpanded, setIsExpanded }: StaticSidebarProps)
         </span>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
-        {navigation.map((item) => {
-           const currentTab = searchParams.get('tab');
-           const [itemPath, itemQuery] = item.href.split('?');
-           const itemTab = itemQuery ? new URLSearchParams(itemQuery).get('tab') : null;
- 
-           let isActive = false;
-           if (itemTab) {
-             isActive = pathname === itemPath && currentTab === itemTab;
-           } else if (item.href === "/dashboard") {
-             isActive = pathname === item.href && !currentTab;
-           } else {
-             isActive = pathname.startsWith(item.href);
-           }
-            
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-              title={item.name}
-            >
-              <item.icon className="h-5 w-5 flex-shrink-0" />
+      {/* This new div will contain the navigation and handle scrolling */}
+      <div className="flex-1 overflow-y-auto">
+        <nav className="p-4 space-y-2">
+          {navigation.map((item) => {
+            const currentTab = searchParams.get('tab');
+            const [itemPath, itemQuery] = item.href.split('?');
+            const itemTab = itemQuery ? new URLSearchParams(itemQuery).get('tab') : null;
+  
+            let isActive = false;
+            if (itemTab) {
+              isActive = pathname === itemPath && currentTab === itemTab;
+            } else if (item.href === "/dashboard") {
+              isActive = pathname === item.href && !currentTab;
+            } else {
+              isActive = pathname.startsWith(item.href);
+            }
+              
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+                title={item.name}
+              >
+                <item.icon className="h-5 w-5 flex-shrink-0" />
+                <span
+                  className={cn(
+                    "overflow-hidden whitespace-nowrap transition-all duration-200",
+                    isExpanded ? "w-full opacity-100" : "w-0 opacity-0"
+                  )}
+                >
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+          <div className="pt-2">
+            <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground">
+              <Coins className="h-5 w-5 flex-shrink-0" />
               <span
                 className={cn(
                   "overflow-hidden whitespace-nowrap transition-all duration-200",
                   isExpanded ? "w-full opacity-100" : "w-0 opacity-0"
                 )}
               >
-                {item.name}
+                Credits
               </span>
-            </Link>
-          );
-        })}
-        <div className="pt-2">
-           <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground">
-             <Coins className="h-5 w-5 flex-shrink-0" />
-             <span
+            </div>
+            <div className="px-3">
+              {loadingCredits ? (
+                <div className="h-2 bg-muted rounded-full animate-pulse" />
+              ) : (
+                <Progress value={(credits.used / credits.total) * 100} />
+              )}
+            </div>
+            <p
               className={cn(
-                "overflow-hidden whitespace-nowrap transition-all duration-200",
-                isExpanded ? "w-full opacity-100" : "w-0 opacity-0"
+                "text-xs text-muted-foreground text-center pt-2 transition-opacity duration-200",
+                isExpanded ? "opacity-100" : "opacity-0"
               )}
             >
-              Credits
-            </span>
-           </div>
-           <div className="px-3">
-             {loadingCredits ? (
-               <div className="h-2 bg-muted rounded-full animate-pulse" />
-             ) : (
-               <Progress value={(credits.used / credits.total) * 100} />
-             )}
-           </div>
-           <p
-            className={cn(
-              "text-xs text-muted-foreground text-center pt-2 transition-opacity duration-200",
-              isExpanded ? "opacity-100" : "opacity-0"
-            )}
-          >
-            {loadingCredits ? "Loading..." : `${credits.used}/${credits.total} Credits Used`}
-          </p>
-        </div>
-      </nav>
+              {loadingCredits ? "Loading..." : `${credits.used}/${credits.total} Credits Used`}
+            </p>
+          </div>
+        </nav>
+      </div>
 
-      <div className="mt-auto border-t p-4 space-y-2">
+      {/* This div is now a stable footer */}
+      <div className="flex-shrink-0 border-t p-4 space-y-2">
         <Link
           href="/dashboard/settings"
           className={cn(

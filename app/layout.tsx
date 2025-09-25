@@ -7,11 +7,11 @@ import { AuthProvider } from "@/components/auth/auth-provider"
 import { Suspense } from "react"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
+import { NotificationProvider } from "@/components/notifications/NotificationProvider"
 
 export const metadata: Metadata = {
   title: "Smart Doc Checker - AI-Powered Document Analysis",
   description: "Analyze documents for contradictions and inconsistencies using advanced AI",
-  generator: "v0.app",
 }
 
 export default function RootLayout({
@@ -23,7 +23,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <Suspense fallback={<div>Loading...</div>}>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <NotificationProvider>
+              {children}
+            </NotificationProvider>
+          </AuthProvider>
         </Suspense>
         <Toaster />
         <Analytics />

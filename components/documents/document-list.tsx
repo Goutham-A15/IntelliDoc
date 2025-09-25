@@ -1,4 +1,3 @@
-// NodeTest/components/documents/document-list.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -8,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, FileText, Calendar, GitCompareArrows, Eye, Check, AlertTriangle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { Document, AnalysisJob } from "@/lib/types/database";
-import { FileViewer } from "./file-viewer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,16 +20,17 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { fetchFromApi } from "@/lib/api-client";
+import { useFileViewer } from "./FileViewerProvider";
 
 interface DocumentWithAnalysis extends Document {
   analysis_jobs: AnalysisJob[];
+  is_compared: boolean;
 }
 
 interface DocumentListProps {
   onCompare: (documents: { id: string; name: string; text_storage_path?: string | null }[]) => void;
   onDelete: (documentId: string) => void;
   refreshTrigger?: number;
-  comparisonCompletedIds?: string[];
 }
 
 const formatFileSize = (size: number) => {
@@ -42,9 +41,10 @@ const formatFileSize = (size: number) => {
     return parseFloat((size / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
-const getStatusBadge = (jobs: AnalysisJob[], isCompleted: boolean) => {
-    if (isCompleted) return <Badge variant="default">Comparison Completed</Badge>;
-    if (jobs.length === 0) return <Badge variant="secondary">Not Analyzed</Badge>;
+const getStatusBadge = (jobs: AnalysisJob[], isCompared: boolean, isSelected: boolean) => {
+    if (isCompared) return <Badge variant="default">Comparison Completed</Badge>;
+    if (isSelected) return <Badge variant="outline">Ready To Compare</Badge>
+    if (jobs.length === 0) return <Badge variant="secondary">Ready To Compare</Badge>;
     const latestJob = jobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
     switch (latestJob.status) {
         case "completed": return <Badge variant="default">Analyzed</Badge>;
@@ -54,14 +54,14 @@ const getStatusBadge = (jobs: AnalysisJob[], isCompleted: boolean) => {
     }
 };
 
-export function DocumentList({ onCompare, onDelete, refreshTrigger, comparisonCompletedIds = [] }: DocumentListProps) {
+export function DocumentList({ onCompare, onDelete, refreshTrigger }: DocumentListProps) {
   const [documents, setDocuments] = useState<DocumentWithAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
-  const [viewingDocument, setViewingDocument] = useState<Document | null>(null);
   const [documentToDelete, setDocumentToDelete] = useState<DocumentWithAnalysis | null>(null);
   const { toast } = useToast();
+  const { showFile } = useFileViewer();
 
  const fetchDocuments = useCallback(async () => {
     try {
@@ -131,7 +131,6 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger, comparisonCo
   return (
     <div className="space-y-4">
        <p className="text-sm text-muted-foreground">Select two or more documents you want to compare.</p>
-      {viewingDocument && <FileViewer document={viewingDocument} onClose={() => setViewingDocument(null)} />}
         {selectedForComparison.length >= 2 && (
           <div className="p-4 bg-primary/10 rounded-lg flex items-center justify-between animate-in fade-in-50">
               <p className="text-sm font-medium">Ready to compare {selectedForComparison.length} documents.</p>
@@ -140,7 +139,7 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger, comparisonCo
         )}
       {documents.map((document) => {
         const isSelectedForComparison = selectedForComparison.includes(document.id);
-        const isComparisonCompleted = comparisonCompletedIds.includes(document.id);
+        const isComparisonCompleted = document.is_compared;
 
         return (
         <Card
@@ -155,7 +154,7 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger, comparisonCo
                  </div>
                 <CardTitle className="text-lg font-medium">{document.filename}</CardTitle>
               </div>
-              {getStatusBadge(document.analysis_jobs, isComparisonCompleted)}
+              {getStatusBadge(document.analysis_jobs, isComparisonCompleted, isSelectedForComparison)}
             </div>
           </CardHeader>
           <CardContent>
@@ -165,7 +164,7 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger, comparisonCo
                 <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{formatDistanceToNow(new Date(document.created_at), { addSuffix: true })}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setViewingDocument(document); }}><Eye className="h-4 w-4 mr-2" />View</Button>
+                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); showFile(document); }}><Eye className="h-4 w-4 mr-2" />View</Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setDocumentToDelete(document); }}><Trash2 className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -188,3 +187,4 @@ export function DocumentList({ onCompare, onDelete, refreshTrigger, comparisonCo
     </div>
   )
 }
+

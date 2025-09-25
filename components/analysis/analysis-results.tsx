@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { AlertTriangle, CheckCircle, Clock, FileText, Download } from "lucide-react"
 import type { AnalysisJob } from "@/lib/types/database"
 import type { AnalysisResult, Contradiction, Inconsistency } from "@/lib/ai/gemini-client"
-import { fetchFromApi } from "@/lib/api-client" // Import the helper
+import { fetchFromApi } from "@/lib/api-client" 
 
 interface AnalysisResultsProps {
   jobId: string

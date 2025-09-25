@@ -1,4 +1,3 @@
-// NodeTest/components/analysis/comparison-results.tsx
 "use client"
 
 import { useState, useEffect, useRef } from "react" 

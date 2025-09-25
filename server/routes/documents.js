@@ -1,4 +1,3 @@
-// NodeTest/server/routes/documents.js
 const express = require('express');
 const multer = require('multer');
 const { supabaseAdmin } = require('../config/supabaseClient');
@@ -13,7 +12,7 @@ router.get('/', authMiddleware, async (req, res) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('documents')
-            .select('*, analysis_jobs(*)')
+            .select('*, analysis_jobs(*), is_compared')
             .eq('user_id', req.user.id)
             .order('created_at', { ascending: false });
 

@@ -1,4 +1,3 @@
-// NodeTest/components/upload/file-upload.tsx
 "use client"
 
 import { useState, useCallback, useEffect } from "react"

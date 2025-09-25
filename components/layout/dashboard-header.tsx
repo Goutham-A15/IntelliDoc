@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from 'react';
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Bell, Search } from "lucide-react";
+import { GlobalSearch } from "./GlobalSearch";
+import { NotificationsPopup } from './NotificationsPopup';
+import { useNotifications } from '@/components/notifications/NotificationProvider';
 
 const navigationTabs = [
-  { name: "Docs", href: "/dashboard/docs" },
+  { name: "Docs", href: "/docs" },
   { name: "Help", href: "/dashboard/help" },
   { name: "Support", href: "/dashboard/support" },
 ];
@@ -19,6 +20,8 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ isSidebarExpanded }: DashboardHeaderProps) {
   const pathname = usePathname();
+  const { notifications, dismissNotification, unreadCount } = useNotifications();
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
 
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -35,17 +38,10 @@ export function DashboardHeader({ isSidebarExpanded }: DashboardHeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-            />
-          </div>
+          <GlobalSearch />
           <nav className="flex items-center space-x-1">
             {navigationTabs.map((tab) => {
-              const isActive = pathname === tab.href;
+              const isActive = pathname.startsWith(tab.href);
               return (
                 <Link
                   key={tab.name}
@@ -61,10 +57,13 @@ export function DashboardHeader({ isSidebarExpanded }: DashboardHeaderProps) {
                 </Link>
               );
             })}
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Toggle notifications</span>
-            </Button>
+            <NotificationsPopup 
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onDismiss={dismissNotification}
+              isOpen={isPopupOpen}
+              setIsOpen={setIsPopupOpen}
+            />
           </nav>
         </div>
       </div>

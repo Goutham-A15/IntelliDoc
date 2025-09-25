@@ -1,4 +1,3 @@
-// NodeTest/components/history/HistoryDetailsModal.tsx
 "use client";
 
 import {
@@ -52,6 +51,8 @@ export function HistoryDetailsModal({
             documents={documents}
             initialData={historyItem.results}
             onAnalysisComplete={() => {}}
+            // Add this line to fix the error
+            runId={null} 
           />
         </div>
       </DialogContent>

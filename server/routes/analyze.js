@@ -1,4 +1,3 @@
-// NodeTest/server/routes/analyze.js
 const express = require('express');
 const { geminiModel } = require('../utils/geminiClient');
 const { supabaseAdmin } = require('../config/supabaseClient');
@@ -17,8 +16,8 @@ router.post('/comparison', authMiddleware, async (req, res) => {
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
       .select('credits')
-      .eq('id', userId)
-      .single();
+      .eq('id', userId)   
+      .single();  
 
     if (userError) throw new Error('User not found.');
     if (user.credits < OPERATION_COST) {
@@ -82,6 +81,13 @@ ${doc.text}
     const responseText = result.response.text();
     const analysisResult = JSON.parse(responseText.match(/\{[\s\S]*\}/)[0]);
     
+    if (analysisResult) {
+        await supabaseAdmin
+            .from('documents')
+            .update({ is_compared: true })
+            .in('id', documentIds);
+    }
+    
     const newCredits = user.credits - OPERATION_COST;
 
     const { error: transactionError } = await supabaseAdmin.rpc('update_credits_and_log', {
@@ -108,6 +114,15 @@ ${doc.text}
 
     if (jobError) console.error("Analysis job insert failed:", jobError);
     
+    // --- NEW: Add Notification Logic ---
+    const docNames = documentsToAnalyze.map(d => d.name).join(' & ');
+    await supabaseAdmin.from('notifications').insert({
+      user_id: userId,
+      category: 'report',
+      title: 'Comparison Complete',
+      description: `Your analysis of "${docNames}" is ready to view.`
+    });
+
     res.json(analysisResult);
   } catch (error) {
     console.error("[API] /analyze/comparison error:", error.message);

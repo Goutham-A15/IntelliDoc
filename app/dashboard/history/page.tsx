@@ -1,9 +1,9 @@
-// NodeTest/app/dashboard/history/page.tsx
 "use client"
 import { useState } from "react";
 import { HistoryList } from "@/components/history/history-list";
 import { HistoryDetailsModal } from "@/components/history/HistoryDetailsModal";
 import { History } from "lucide-react";
+import { motion } from "framer-motion"; // Import framer-motion
 
 type HistoryItem = {
   id: string;
@@ -30,7 +30,12 @@ export default function HistoryPage() {
 
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="container mx-auto px-4 py-8 max-w-6xl"
+    >
       <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
         <History className="h-8 w-8" /> Analysis History
       </h1>
@@ -43,6 +48,6 @@ export default function HistoryPage() {
         onClose={handleCloseModal}
         historyItem={selectedHistoryItem}
       />
-    </div>
+    </motion.div>
   );
 }
