@@ -12,6 +12,9 @@ import { NotificationProvider } from "@/components/notifications/NotificationPro
 export const metadata: Metadata = {
   title: "Smart Doc Checker - AI-Powered Document Analysis",
   description: "Analyze documents for contradictions and inconsistencies using advanced AI",
+  icons: {
+    icon: "/favicon.ico",
+  },
 }
 
 export default function RootLayout({
