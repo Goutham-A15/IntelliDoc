@@ -1,4 +1,3 @@
-// NodeTest/server/routes/usage.js
 const express = require('express');
 const authMiddleware = require('../middleware/authMiddleware');
 const { supabaseAdmin } = require('../config/supabaseClient');
@@ -8,10 +7,10 @@ router.get('/', authMiddleware, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // 1. Get user data, including credits, limit, and documents_uploaded count
+        // 1. Get user data, including credits, subscription tier, and documents_uploaded count
         const { data: userData, error: userError } = await supabaseAdmin
             .from('users')
-            .select('credits, usage_limit, subscription_tier, documents_uploaded') // <-- Added usage_limit
+            .select('credits, subscription_tier, documents_uploaded') // Corrected: Removed usage_limit
             .eq('id', userId)
             .single();
 
@@ -28,7 +27,6 @@ router.get('/', authMiddleware, async (req, res) => {
         // 3. Send back all the data
         res.json({
             credits: userData.credits,
-            usage_limit: userData.usage_limit, // <-- Add usage_limit to the response
             subscription_tier: userData.subscription_tier,
             operations_performed: operationsCount || 0,
             documents_uploaded: userData.documents_uploaded || 0,

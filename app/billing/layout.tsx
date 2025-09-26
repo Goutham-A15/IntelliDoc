@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { StaticSidebar } from "@/components/layout/static-sidebar";
+import { FileViewerProvider } from "@/components/documents/FileViewerProvider"; // Import the provider
 
 export default function BillingLayout({
   children,
@@ -35,15 +36,17 @@ export default function BillingLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background relative">
-      <StaticSidebar
-        isExpanded={isSidebarExpanded}
-        setIsExpanded={setIsSidebarExpanded}
-      />
-      <div className="flex-1 flex flex-col">
-        <DashboardHeader isSidebarExpanded={isSidebarExpanded} />
-        <main className="flex-1 overflow-auto p-8">{children}</main>
+    <FileViewerProvider> {/* Wrap the layout with the provider */}
+      <div className="flex h-screen bg-background relative">
+        <StaticSidebar
+          isExpanded={isSidebarExpanded}
+          setIsExpanded={setIsSidebarExpanded}
+        />
+        <div className="flex-1 flex flex-col">
+          <DashboardHeader isSidebarExpanded={isSidebarExpanded} />
+          <main className="flex-1 overflow-auto p-8">{children}</main>
+        </div>
       </div>
-    </div>
+    </FileViewerProvider>
   );
 }

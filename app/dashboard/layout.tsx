@@ -1,3 +1,5 @@
+// app/dashboard/layout.tsx
+
 "use client";
 
 import type React from "react";
@@ -42,7 +44,7 @@ export default function DashboardLayout({
           isExpanded={isSidebarExpanded}
           setIsExpanded={setIsSidebarExpanded}
         />
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col relative"> {/* <--- Add relative here */}
           <DashboardHeader isSidebarExpanded={isSidebarExpanded} />
           <main className="flex-1 overflow-auto p-8">{children}</main>
         </div>
@@ -50,4 +52,3 @@ export default function DashboardLayout({
     </FileViewerProvider>
   );
 }
-

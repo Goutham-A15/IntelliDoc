@@ -1,3 +1,5 @@
+// components/layout/dashboard-header.tsx
+
 "use client";
 
 import Link from "next/link";
@@ -24,7 +26,7 @@ export function DashboardHeader({ isSidebarExpanded }: DashboardHeaderProps) {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
   return (
-    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative z-10"> {/* <--- Add relative and z-10 here */}
       <div className="flex h-14 items-center justify-between px-6">
         <div className="flex items-center">
           <h1
@@ -57,7 +59,7 @@ export function DashboardHeader({ isSidebarExpanded }: DashboardHeaderProps) {
                 </Link>
               );
             })}
-            <NotificationsPopup 
+            <NotificationsPopup
               notifications={notifications}
               unreadCount={unreadCount}
               onDismiss={dismissNotification}

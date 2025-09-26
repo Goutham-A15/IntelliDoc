@@ -1,4 +1,3 @@
-// NodeTest/components/billing/usage-meter.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -60,7 +59,7 @@ export function UsageMeter({ onUpgrade, refreshTrigger }: UsageMeterProps) {
     return (
       <Card>
         <CardContent className="p-6 text-center">
-          <p className="text-red-500">{error || "Failed to load usage data"}</p>
+          <p className="text-red-500">{error || "Failed to fetch details"}</p>
         </CardContent>
       </Card>
     )
@@ -102,7 +101,6 @@ export function UsageMeter({ onUpgrade, refreshTrigger }: UsageMeterProps) {
       <CardContent className="space-y-6">
          <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-muted/50 rounded-lg">
-            {/* --- FIX: Use the correct 'documents_uploaded' field --- */}
             <div className="text-2xl font-bold text-blue-600">{usage.documents_uploaded}</div>
             <div className="text-xs text-muted-foreground">Documents Uploaded</div>
           </div>
@@ -142,4 +140,4 @@ export function UsageMeter({ onUpgrade, refreshTrigger }: UsageMeterProps) {
       </CardContent>
     </Card>
   )
-}
+}   
