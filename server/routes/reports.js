@@ -2,7 +2,7 @@ const express = require('express');
 const { supabaseAdmin } = require('../config/supabaseClient');
 const authMiddleware = require('../middleware/authMiddleware');
 const { jsPDF } = require('jspdf');
-const autoTable = require('jspdf-autotable').default; // Correct way to import for CommonJS
+const autoTable = require('jspdf-autotable').default;
 const router = express.Router();
 
 // GET /api/reports (for the detailed table)
@@ -127,7 +127,7 @@ router.post('/export', authMiddleware, (req, res) => {
                 styles: { fontSize: 10, cellPadding: 2, font: 'helvetica' },
             });
 
-            yPosition = doc.autoTable.previous.finalY + 15;
+            yPosition = doc.lastAutoTable.finalY + 15;
 
             // --- SUMMARY SECTION ---
             doc.setFontSize(16);
@@ -198,4 +198,4 @@ router.post('/export', authMiddleware, (req, res) => {
     }
 });
 
-module.exports = router;    
+module.exports = router;
