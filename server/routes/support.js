@@ -1,7 +1,6 @@
-// NodeTest/server/routes/support.js
 const express = require('express');
 const authMiddleware = require('../middleware/authMiddleware');
-const { supabaseAdmin } = require('../config/supabaseClient'); // Import supabaseAdmin
+const { supabaseAdmin } = require('../config/supabaseClient'); 
 const router = express.Router();
 
 router.post('/', authMiddleware, async (req, res) => {
@@ -21,11 +20,9 @@ router.post('/', authMiddleware, async (req, res) => {
             });
 
         if (error) {
-            // If there's a database error, throw it
             throw error;
         }
 
-        // If successful, send a success response
         res.status(200).json({ message: 'Support ticket submitted successfully.' });
 
     } catch (error) {
