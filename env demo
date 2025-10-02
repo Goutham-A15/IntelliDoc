@@ -2,3 +2,4 @@ NEXT_PUBLIC_SUPABASE_URL=<your supabase public url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your supabase anon key>
 SUPABASE_SERVICE_ROLE_KEY=<your supabase secret key>
 GEMINI_API_KEY=<your gemini api key>
+NEXT_PUBLIC_API_BASE_URL="http://localhost:3001/api"
